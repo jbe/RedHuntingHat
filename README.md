@@ -28,7 +28,7 @@ The report produced by `sample.nim` looks like this:
  `test(name: string)`                   | Define a test suite           | `test("linkedlist"): ..`
  `req(assertion: expr, desc="")`        | Add a requirement(assertion)  | `req(1 == 1)`
                                         |                               | `req(1 == 1, "one is one")`
- `req_exception(kind: typedesc)`        | Require that an expression raises an exception of some kind | `req_exception(EOverflow): ..`
+ `req_exception(kind: typedesc)`        | Require that some statement raises an exception of some kind | `req_exception(EOverflow): ..`
 
 
 ---
