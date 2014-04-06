@@ -1,6 +1,10 @@
+# RedHuntingHat - simple testsuites
+# (C) 2014 Jostein Berre Eliassen
+# Released under the MIT license.
+# Available at https://github.com/jbe/RedHuntingHat
 
 import strutils, tables, terminal
-export tables
+#export tables
 
 setForegroundColor(fgWhite)
 
@@ -14,7 +18,7 @@ type
 
   PTestGroup = ref TTestGroup
   TTestGroup = tuple
-    name:                       string
+    unique_name, short_name:    string
     assertions:                 seq[TTestAssertion]
     children:                   seq[PTestGroup]
     fail_count:                 int
@@ -23,6 +27,109 @@ type
 
   TReportStyle = enum st_normal, st_header, st_success, st_notice,
     st_failure, st_extended, st_todo
+
+var
+  group_stack                   = newSeq[PTestGroup]() # used while nesting groups
+  is_in_exception_assertion     = false
+  suites                        = initTable[string, PTestGroup]() # unique names
+
+proc cur_scope(): PTestGroup =
+  return group_stack[len(group_stack) - 1]
+
+proc is_in_a_scope(): bool = len(group_stack) > 0
+
+iterator levels(path: string): string =
+  if contains(path, '/'):
+    var n_acc = ""
+    for n in split(path, '/'):
+      n_acc &= n
+      yield(n_acc)
+      n_acc &= "/"
+  else:
+    yield path
+
+iterator levels_reverse(path: string): string =
+  if contains(path, '/'):
+    var tokens = split(path, '/')
+    var n_acc = ""
+    for i in 1 .. len(tokens):
+      n_acc = tokens[len(tokens) - i] & n_acc
+      yield(n_acc)
+      n_acc = "/" & n_acc
+  else:
+    yield path
+
+proc bottom_level_of(path: string): string =
+  if contains(path, '/'):
+    return substr(path, rfind(path, "/")+1, len(path)-1)
+  else: return path
+
+proc parent_of(path: string): string =
+  return substr(path, 0, rfind(path, "/") - 1)
+
+proc new_group(name: string): PTestGroup =
+  result              = new(TTestGroup)
+  result.unique_name  = name
+  result.short_name   = bottom_level_of(name)
+  result.assertions   = newSeq[TTestAssertion]()
+  result.children     = newSeq[PTestGroup]()
+  suites[name]        = result
+
+proc scope_stem(): string =
+  if is_in_a_scope(): return cur_scope().unique_name & "/"
+  else: return ""
+
+
+proc get_or_create_group(name: string): PTestGroup =
+  if suites[name] != nil: return suites[name]
+  else:
+    result = new_group(name)
+    if contains(name, '/'):
+      add(suites[parent_of(name)].children, result)
+
+template test*(name: string, code: stmt): stmt =
+  if is_in_exception_assertion:
+    quit("groups are not allowed inside assert_raises")
+  var
+    grp: PTestGroup
+    stem = scope_stem()
+  for n in levels(name):
+    grp = get_or_create_group(stem & n)
+    add(group_stack, grp)
+  code
+  for n in levels_reverse(name):
+    discard pop(group_stack)
+    if is_in_a_scope():
+      cur_scope().subtree_assertion_count += grp.subtree_assertion_count
+      cur_scope().subtree_assertion_count += len(grp.assertions)
+      cur_scope().subtree_fail_count += grp.subtree_fail_count
+      cur_scope().subtree_fail_count += grp.fail_count
+
+
+template req*(a: expr, desc="") =
+  if not is_in_a_scope():
+    quit("requirements are only allowed inside test suites")
+  if is_in_exception_assertion:
+    quit("requirements are not allowed inside req_exception blocks")
+  let pos = instantiationInfo()
+  var did_pass: bool
+  did_pass = a
+  add(cur_scope().assertions, (desc, "assert " & a.astToStr(), pos.filename, pos.line, did_pass))
+  if not did_pass:
+    cur_scope().fail_count += 1
+
+template req_exception*(excptn: typedesc, code: stmt): stmt =
+  let pos = instantiationInfo()
+  var raised_error: bool
+  is_in_exception_assertion = true
+  try: code
+  except excptn: raised_error = true
+  is_in_exception_assertion = false
+  add(cur_scope().assertions, ("should raise " & excptn.astToStr(), "see tests", pos.filename, pos.line, raised_error))
+
+
+# Report printer:
+
 
 proc WriteColored(str: string, color: TForegroundColor, style={styleBright}) =
   setForegroundColor(color)
@@ -35,54 +142,17 @@ proc say[T](style: TReportStyle, strs: varargs[T]) =
     of st_normal:     write(stdout, str)
     of st_header:     WriteStyled(str, {styleBright})
     of st_success:    WriteColored(str, fgGreen)
-    of st_notice:     WriteStyled(str, {styleUnderscore})
+    of st_notice:     WriteColored(str, fgYellow)
     of st_failure:    WriteColored(str, fgRed)
     of st_extended:   WriteStyled(str, {styleDim})
     of st_todo:       WriteColored(str, fgCyan, {styleDim})
 
-
-
-var initialized {.threadvar.}: bool
-var scope_stack {.threadvar.}: seq[PTestGroup]
-var is_inside_exception_assertion {.threadvar.}: bool
-
-var suites = initTable[string, PTestGroup]()
-
-template cur_scope(): PTestGroup =
-  scope_stack[len(scope_stack) - 1]
-
-template group*(group_name: string, code: stmt): stmt =
-  if is_inside_exception_assertion:
-    quit("groups are not allowed inside assert_raises")
-  var grp = new(TTestGroup)
-  grp.name = group_name
-  grp.assertions = newSeq[TTestAssertion]()
-  grp.children = newSeq[PTestGroup]()
-  if len(scope_stack) > 0: add(cur_scope.children, grp)
-  add(scope_stack, grp)
-  code
-  var exited_scope = cur_scope
-  discard pop(scope_stack)
-  if len(scope_stack) > 0:
-    cur_scope.subtree_assertion_count += exited_scope.subtree_assertion_count
-    cur_scope.subtree_assertion_count += len(exited_scope.assertions)
-    cur_scope.subtree_fail_count += exited_scope.subtree_fail_count
-    cur_scope.subtree_fail_count += exited_scope.fail_count
-
-template test_suite*(name: string, code: stmt) =
-  if not initialized:
-    scope_stack = newSeq[PTestGroup]()
-    initialized = true
-  group(name):
-    code
-    suites[name] = scope_stack[0]
-
 proc show_fail_list(grp: PTestGroup) =
-  add(scope_stack, grp)
+  add(group_stack, grp)
 
   if grp.fail_count > 0:
-    let name_str = map(scope_stack, proc(x:PTestGroup): string = x.name).join("/")
-    say(st_failure, "  ", name_str, ": \n")
+    #let name_str = map(group_stack, proc(x:PTestGroup): string = x.short_name).join("/")
+    say(st_failure, "  ", grp.unique_name, ": \n")
 
     for s in grp.assertions:
       if not s.passed:
@@ -91,43 +161,47 @@ proc show_fail_list(grp: PTestGroup) =
     echo("")
 
   for i in 0 .. <len(grp.children): show_fail_list(grp.children[i])
-  discard pop(scope_stack)
+  discard pop(group_stack)
 
 proc show_result_tree(grp: PTestGroup) =
-  for i in 0 .. len(scope_stack): write(stdout, "  ")
+  for i in 0 .. len(group_stack): write(stdout, "  ")
 
-  say(st_normal, grp.name, ": ")
+  say(st_normal, grp.short_name, ": ")
+  say(st_extended, "(", $(grp.subtree_assertion_count + len(grp.assertions)), ") ")
 
   if grp.fail_count == 0:
-    if len(grp.assertions) > 0:
+
+    if (len(grp.assertions) > 0) or (grp.subtree_fail_count == 0 and len(grp.children) > 0):
       say(st_success, "ok")
     elif len(grp.children) == 0:
       say(st_todo, "todo")
   else:
     say(st_failure, $grp.fail_count, " fail")
 
+  # say(st_extended, " ", $grp.subtree_assertion_count, " subtree")
+
   say(st_normal, "\n")
 
-  add(scope_stack, grp)
-  for i in 0 .. <len(grp.children): show_result_tree(grp.children[i])
-  discard pop(scope_stack)
+  add(group_stack, grp)
+  if grp.subtree_fail_count > 0:
+    for i in 0 .. <len(grp.children): show_result_tree(grp.children[i])
+  discard pop(group_stack)
 
-proc run_suite*(names: varargs[string]) =
+proc print_results*(names: varargs[string]) =
   for name in names:
 
     if suites[name] == nil: raise newException(ESynch,
       "invalid test suite name: " & name)
     echo ""
-    #say(st_header, "Test results (", name, ")")
-    #echo "\n"
     let total_fail_count = suites[name].subtree_fail_count + suites[name].fail_count
     if total_fail_count > 0:
-      say(st_failure, $total_fail_count, " tests failed.")
+      say(st_failure, $total_fail_count, " requirements failed.")
     else:
-      say(st_success, $total_fail_count, " All tests passed")
+      say(st_success, "All requirements passed")
     let total_assertion_count = suites[name].subtree_assertion_count + len(suites[name].assertions)
     say(st_normal, "\n", $total_assertion_count, " total")
     echo "\n"
+    #say(st_notice, "  Suites:\n\n")
     show_result_tree(suites[name])
     #echo ""
     #say(st_header, "Failures:")
@@ -135,43 +209,26 @@ proc run_suite*(names: varargs[string]) =
     show_fail_list(suites[name])
     echo ""
 
-template require*(a: expr, desc="") =
-  if is_inside_exception_assertion:
-    quit("requirements are not allowed inside require_exception")
-  let pos = instantiationInfo()
-  var did_pass: bool
-  did_pass = a
-  add(cur_scope.assertions, (desc, "assert " & a.astToStr(), pos.filename, pos.line, did_pass))
-  if not did_pass:
-    cur_scope.fail_count += 1
-
-template require_exception*(excptn, code: stmt): stmt =
-  let pos = instantiationInfo()
-  var raised_error: bool
-  is_inside_exception_assertion = true
-  try: code
-  except excptn: raised_error = true
-  is_inside_exception_assertion = false
-  add(cur_scope.assertions, ("should raise " & excptn.astToStr(), "see tests", pos.filename, pos.line, raised_error))
-
 
 when isMainModule:
 
   proc raise_esynch() = raise newException(ESynch, "yo")
 
-  test_suite("nimrod"):
-    group("the huntsman"):
-      group("should be sane"):
-        require(true == true,   "false is false")
-        require(false == false, "true is true")
-        require_exception(ESynch):
+  test("core/nimrod"):
+    test("the huntsman"):
+      test("should be sane"):
+        req(true == true,   "false is false")
+        req(false == false, "true is true")
+        req_exception(ESynch):
           raise_esynch()
-      group("should be insane"):
-        require(true == false,  "true is false")
-        require(1 == 2,         "one is two")
-    group("the king"):
-      group("should be powerful"):
+      test("should be insane"):
+        req(true == false,  "true is false")
+        req(1 == 2,         "one is two")
+    test("the king"):
+      test("should be powerful"):
         discard
+      test("should wear a crown"):
+        req("nimrod wears" == "crown", "all strings should be equal just because")
 
-  run_suite("nimrod")
+  print_results("core")
 

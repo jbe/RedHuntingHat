@@ -1,7 +1,7 @@
 [Package]
 name          = "RedHuntingHat"
-version       = "0.0.1"
+version       = "0.0.2"
 author        = "Jostein Berre Eliassen"
-description   = "Test suites/specs with nice and simple reports"
+description   = "Test suites/specs with nice reports"
 license       = "MIT"
 
