@@ -12,7 +12,7 @@ The report produced by `sample.nim` looks like this:
 
 ![Picture of formatted test output](http://i.imgur.com/sfsoxfw.png)
 
-*Features:*
+**Features:**
 
 - Very simple syntax
 - Lets you define named test suites
@@ -21,15 +21,14 @@ The report produced by `sample.nim` looks like this:
 - Any subtree of suites can be easily printed
 - Easy to iterate over test results if needed
 
-*API:*
+**API:**
 
- func                                   | Usage                         | Example
+ template                               | Usage                         | Example
  -------------------------------------- |------------------------------ | ------------------------------
- `test(name: string)`                   | Defines a test suite          | `test("linkedlist"): ..`
- `req(assertion: expr, desc="")`        | Adds a requirement(assertion) | `req(1 == 1)`
+ `test(name: string)`                   | Define a test suite           | `test("linkedlist"): ..`
+ `req(assertion: expr, desc="")`        | Add a requirement(assertion)  | `req(1 == 1)`
                                         |                               | `req(1 == 1, "one is one")`
- `req_exception(kind: typedesc)         | Require that an expression
-                                        | raises an exception of some kind | `req_exception(EOverflow): ..`
+ `req_exception(kind: typedesc)`        | Require that an expression raises an exception of some kind | `req_exception(EOverflow): ..`
 
 
 ---
