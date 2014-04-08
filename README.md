@@ -8,7 +8,7 @@ RedHuntingHat
 
 This library is a quick hack (but one that works well for me), that I use to create test suites for my Nimrod projects. Right now, it only has one report printer; which produces ANSI colored terminal output. It is not in Babel, so you must download `RedHuntingHat.nim` if you want to use it.
 
-The report produced by `sample.nim` looks like this:
+Here is some sample output:
 
 ![Picture of formatted test output](http://i.imgur.com/sfsoxfw.png)
 
