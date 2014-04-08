@@ -120,12 +120,14 @@ template req*(a: expr, desc="") =
 
 template req_exception*(excptn: typedesc, code: stmt): stmt =
   let pos = instantiationInfo()
-  var raised_error: bool
+  var raised_error = false
   is_in_exception_assertion = true
   try: code
   except excptn: raised_error = true
   is_in_exception_assertion = false
   add(cur_scope().assertions, ("should raise " & excptn.astToStr(), "see tests", pos.filename, pos.line, raised_error))
+  if not raised_error:
+    cur_scope().fail_count += 1
 
 
 # Report printer:
