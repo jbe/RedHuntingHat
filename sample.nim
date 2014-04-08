@@ -17,10 +17,15 @@ test("core/nimrod"):
       req(1 == 2,         "one is two")
 
 test("core/nimrod/the king"): # the tree of suites is implicitly merged.
-  test("should be powerful"): # this is how you would split tests across files.
-    discard
+  test("should be powerful"): # this way you can distribute tests across
+    discard                   # more than one file.
   test("should wear a crown"):
-    req("crown" == "crown", "equal strings are equal when they are equal")
+    req("crown" == "big", "this obviously fails")
+
+test("core"):
+  test("nimrod/the king"):
+    test("should wear a crown"):
+      req("crown" == "crown", "equal strings are equal when they are equal")
 
 print_results("core")
 

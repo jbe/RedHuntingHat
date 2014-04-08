@@ -114,7 +114,7 @@ template req*(a: expr, desc="") =
   let pos = instantiationInfo()
   var did_pass: bool
   did_pass = a
-  add(cur_scope().assertions, (desc, "assert " & a.astToStr(), pos.filename, pos.line, did_pass))
+  add(cur_scope().assertions, (desc, "req " & a.astToStr(), pos.filename, pos.line, did_pass))
   if not did_pass:
     cur_scope().fail_count += 1
 
@@ -174,7 +174,7 @@ proc show_result_tree(grp: PTestGroup) =
     if (len(grp.assertions) > 0) or (grp.subtree_fail_count == 0 and len(grp.children) > 0):
       say(st_success, "ok")
     elif len(grp.children) == 0:
-      say(st_todo, "todo")
+      say(st_todo, "# TODO")
   else:
     say(st_failure, $grp.fail_count, " fail")
 
@@ -195,11 +195,11 @@ proc print_results*(names: varargs[string]) =
     echo ""
     let total_fail_count = suites[name].subtree_fail_count + suites[name].fail_count
     if total_fail_count > 0:
-      say(st_failure, $total_fail_count, " requirements failed.")
+      say(st_failure, "  ", $total_fail_count, " requirements failed.")
     else:
-      say(st_success, "All requirements passed")
+      say(st_success, "  All requirements passed.")
     let total_assertion_count = suites[name].subtree_assertion_count + len(suites[name].assertions)
-    say(st_normal, "\n", $total_assertion_count, " total")
+    #say(st_normal, "\n", $total_assertion_count, " total")
     echo "\n"
     #say(st_notice, "  Suites:\n\n")
     show_result_tree(suites[name])
