@@ -6,20 +6,14 @@ RedHuntingHat
 
 ---
 
-This library is a quick hack (but one that works well for me), that I use to create test suites for my Nimrod projects. Right now, it only has one report printer; which produces ANSI colored terminal output. It is not in Babel, so you must download `RedHuntingHat.nim` if you want to use it.
+This library is a quick hack (but one that works well for me), that I use to create test suites for Nimrod projects than span several files. Right now, it only has one report printer; which produces ANSI colored terminal output. It is not in Babel yet, so you must download `RedHuntingHat.nim` if you want to use it.
 
-Here is some sample output:
+Some sample output:
 
-![Picture of formatted test output](http://i.imgur.com/sfsoxfw.png)
+![Picture of formatted test output](http://i.imgur.com/3pAOgnJ.png)
 
-**Features:**
+In RHH, all tests and suites reside in a global name space. Suites can have child suites, and tests can be defined from any file. Any subtree of test suites can be easily printed, and it is easy to add debug notes to parts of the tree at run time. These notes are suite local, and will be shown when requirements fail.
 
-- Very simple syntax
-- Lets you define named test suites
-- A named test suite is a tree of named test suites
-- Assertions and suites can be added to any subtree from any file
-- Any subtree of suites can be easily printed
-- Easy to iterate over test results if needed
 
 **API:**
 
@@ -29,6 +23,7 @@ Here is some sample output:
  `req(assertion: expr, desc="")`        | Add a requirement(assertion)  | `req(1 == 1)`
                                         |                               | `req(1 == 1, "one is one")`
  `req_exception(kind: typedesc)`        | Require that some statement raises an exception of some kind | `req_exception(EOverflow): ..`
+ `dbg(msgs: varargs[string])`           | Adds a debug message to the current suite, that will be shown when one of its requirements fail. Useful for inspecting variables | `dbg("value of x: ", $x)`
 
 
 ---

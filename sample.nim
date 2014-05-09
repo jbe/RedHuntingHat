@@ -8,8 +8,8 @@ proc raise_esynch() = raise newException(ESynch, "yo")
 test("core/nimrod"):
   test("the huntsman"):
     test("should be sane"):
-      req(true == true,   "false is false")
-      req(false == false, "true is true")
+      req(true == true,   "true is true")
+      req(false == false, "false is false")
       req_exception(ESynch):
         raise_esynch()
     test("should be insane"):
@@ -20,12 +20,14 @@ test("core/nimrod/the king"): # the tree of suites is implicitly merged.
   test("should be powerful"): # this way you can distribute tests across
     discard                   # more than one file.
   test("should wear a crown"):
+    dbg("x before swizzling: 1237")
     req("crown" == "big", "this obviously fails")
+    dbg("x after swizzling: 2344324")
 
 test("core"):
   test("nimrod/the king"):
     test("should wear a crown"):
-      req("crown" == "crown", "equal strings are equal when they are equal")
+      req("crown" == "corona", "equal strings are equal when they are not equal")
 
 print_results("core")
 

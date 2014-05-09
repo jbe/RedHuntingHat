@@ -1,0 +1,11 @@
+
+Bugs:
+- test counts are some times wrong
+
+
+Planned:
+- factor out report printer functionality
+- not depend on gc, thread safe
+- async mechanisms for multithreaded testing
+
+

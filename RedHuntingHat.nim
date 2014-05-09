@@ -3,29 +3,28 @@
 # Released under the MIT license.
 # Available at https://github.com/jbe/RedHuntingHat
 
-import strutils, tables, terminal
-#export tables
-
-setForegroundColor(fgWhite)
+import
+  strutils, tables, terminal
 
 type
-  TTestAssertion = tuple
-    desc:       string
+  TAssertion* = tuple
+    desc:  string
     ast_str:    string
     filename:   string
     lineno:     int
     passed:     bool
 
-  PTestGroup = ref TTestGroup
-  TTestGroup = tuple
-    unique_name, short_name:    string
-    assertions:                 seq[TTestAssertion]
-    children:                   seq[PTestGroup]
-    fail_count:                 int
-    subtree_fail_count:         int
-    subtree_assertion_count:    int
+  PTestGroup* = ref TTestGroup
+  TTestGroup* = tuple
+    unique_name, short_name:        string
+    dbg:                            seq[string]
+    assertions:                     seq[TAssertion]
+    children:                       seq[PTestGroup]
+    fail_count:                     int
+    subtree_fail_count:             int
+    subtree_assertion_count:        int
 
-  TReportStyle = enum st_normal, st_header, st_success, st_notice,
+  TReportStyle* = enum st_normal, st_header, st_success, st_notice,
     st_failure, st_extended, st_todo
 
 var
@@ -71,7 +70,7 @@ proc new_group(name: string): PTestGroup =
   result              = new(TTestGroup)
   result.unique_name  = name
   result.short_name   = bottom_level_of(name)
-  result.assertions   = newSeq[TTestAssertion]()
+  result.assertions   = newSeq[TAssertion]()
   result.children     = newSeq[PTestGroup]()
   suites[name]        = result
 
@@ -129,6 +128,13 @@ template req_exception*(excptn: typedesc, code: stmt): stmt =
   if not raised_error:
     cur_scope().fail_count += 1
 
+template dbg*(msg: varargs[string]) =
+  if not is_in_a_scope():
+    quit("dbg comments are only allowed inside test suites")
+  if cur_scope().dbg.isNil: cur_scope().dbg = newSeq[string]()
+
+  for s in msg: add(cur_scope().dbg, s)
+
 
 # Report printer:
 
@@ -144,7 +150,7 @@ proc say[T](style: TReportStyle, strs: varargs[T]) =
     of st_normal:     write(stdout, str)
     of st_header:     WriteStyled(str, {styleBright})
     of st_success:    WriteColored(str, fgGreen)
-    of st_notice:     WriteColored(str, fgYellow)
+    of st_notice:     WriteColored(str, fgYellow, {styleDim})
     of st_failure:    WriteColored(str, fgRed)
     of st_extended:   WriteStyled(str, {styleDim})
     of st_todo:       WriteColored(str, fgCyan, {styleDim})
@@ -160,6 +166,11 @@ proc show_fail_list(grp: PTestGroup) =
       if not s.passed:
         say(st_normal, "    ", s.filename, "(", $s.lineno, "): ", s.desc)
         say(st_extended, " (", s.ast_str, ")\n")
+    if not grp.dbg.isNil:
+      for s in grp.dbg:
+         say(st_notice, "    + ")
+         say(st_extended, s, "\n")
+      say(st_extended, "\n")
     echo("")
 
   for i in 0 .. <len(grp.children): show_fail_list(grp.children[i])
@@ -230,7 +241,9 @@ when isMainModule:
       test("should be powerful"):
         discard
       test("should wear a crown"):
+        dbg("value of crown before req: gold")
         req("nimrod wears" == "crown", "all strings should be equal just because")
+        dbg("value of crown after req: lead")
 
   print_results("core")
 
