@@ -4,8 +4,8 @@ Bugs:
 
 
 Planned:
+- not depend on gc, towards thread support (use linked list in shared memory?)
 - factor out report printer functionality
-- not depend on gc, thread safe
 - async mechanisms for multithreaded testing
 
 
