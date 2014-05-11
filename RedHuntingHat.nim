@@ -133,7 +133,7 @@ template dbg*(msg: varargs[string]) =
     quit("dbg comments are only allowed inside test suites")
   if cur_scope().dbg.isNil: cur_scope().dbg = newSeq[string]()
 
-  for s in msg: add(cur_scope().dbg, s)
+  add(cur_scope().dbg, msg.join())
 
 
 # Report printer:
